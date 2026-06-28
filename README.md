@@ -4,15 +4,23 @@
 
 # scalecard
 
+<!-- badges: start -->
+
+[![R-CMD-check](https://github.com/daliakopoulos/scalecard/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/daliakopoulos/scalecard/actions/workflows/R-CMD-check.yaml)
+<!-- badges: end -->
+
 `scalecard` perspective-corrects (“rectifies”) and scales photographs
-taken with the **Credit Card Photography Scale** (Past Horizons)
-calibration card. The card’s three crosshair rectification targets (on a
-precise 50 × 20 mm frame), its red/yellow/blue colour patches and its
-8 cm scale-bar squares are detected automatically and used as
-ground-control points for a projective (homography) transform. The
-result is a flat image at a known pixels-per-millimetre scale, so any
-feature can be measured in millimetres. It is an R port of a browser
-(OpenCV.js) tool, built on `magick`, `imager` and `EBImage`.
+taken with the [**Credit Card Photography
+Scale**](https://pasthorizons.com/products/credit-card-photography-scale)
+(Past Horizons) calibration card. The card’s three crosshair
+rectification targets (on a precise 50 × 20 mm frame), its
+red/yellow/blue colour patches and its 8 cm scale-bar squares are
+detected automatically and used as ground-control points for a
+projective (homography) transform. The result is a flat image at a known
+pixels-per-millimetre scale, so any feature can be measured in
+millimetres. It is an R port of the [online browser
+tool](https://agroinformatics.gr/card-rectifier/) (OpenCV.js), built on
+`magick`, `imager` and `EBImage`.
 
 ## Installation
 

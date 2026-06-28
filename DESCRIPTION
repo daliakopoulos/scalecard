@@ -13,6 +13,8 @@ Description: Perspective-corrects ("rectifies") and scales photographs taken wit
     colour-correction off the card's reference swatches are provided. This is an R
     port of a browser (OpenCV.js) tool, built on 'magick', 'imager' and 'EBImage'
     instead of OpenCV.
+URL: https://github.com/daliakopoulos/scalecard, https://agroinformatics.gr/card-rectifier/
+BugReports: https://github.com/daliakopoulos/scalecard/issues
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.0)
