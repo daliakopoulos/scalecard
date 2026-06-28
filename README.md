@@ -1,122 +1,148 @@
+
+<!-- README.md is generated from README.Rmd — edit README.Rmd, then run
+     rmarkdown::render("README.Rmd") (needs pandoc). -->
+
 # scalecard
 
-Rectify (perspective-correct) and scale photographs taken with the **Credit Card
-Photography Scale** (Past Horizons) calibration card, in R. It is an R port of the
-browser/OpenCV.js [card rectifier](../rectify_app/index.html), built on
-`magick` + `imager` + `EBImage` instead of OpenCV.
+`scalecard` perspective-corrects (“rectifies”) and scales photographs
+taken with the **Credit Card Photography Scale** (Past Horizons)
+calibration card. The card’s three crosshair rectification targets (on a
+precise 50 × 20 mm frame), its red/yellow/blue colour patches and its
+8 cm scale-bar squares are detected automatically and used as
+ground-control points for a projective (homography) transform. The
+result is a flat image at a known pixels-per-millimetre scale, so any
+feature can be measured in millimetres. It is an R port of a browser
+(OpenCV.js) tool, built on `magick`, `imager` and `EBImage`.
 
-The card's three crosshair *rectification targets* (on a precise 50 × 20 mm
-frame), its red/yellow/blue colour patches and its 8 cm scale-bar squares are
-detected automatically and used as ground-control points for a projective
-(homography) transform. The output is a flat image at a known pixels-per-mm
-scale, so any feature can be measured in millimetres.
+## Installation
 
-## Install
-
-```r
-# needs: magick, imager, EBImage (Bioconductor)
+``` r
+# needs: magick, imager, and EBImage (Bioconductor)
 # install.packages(c("magick", "imager"))
-# BiocManager::install("EBImage")
-install.packages("path/to/scalecard", repos = NULL, type = "source")
-# or, during development:
-pkgload::load_all("scalecard")
+# install.packages("BiocManager"); BiocManager::install("EBImage")
+
+# install.packages("remotes")
+remotes::install_github("daliakopoulos/scalecard")
 ```
 
-## Quick start
+## A worked example
 
-```r
+The package ships with a sample photo (a calibration card and two
+objects on a cutting mat). Load it and run the whole pipeline in one
+call.
+
+``` r
 library(scalecard)
-
-# one call: auto-detect the card, rectify, white-balance, write a PNG
-rec <- rectify_card("photo.jpg", output = "photo_rectified.png")
-rec$px_per_mm            # 10  -> 0.1 mm per pixel
-measure_mm(rec, 250)     # 250 px on the output = 25 mm
-
-# colour-correct to the card's reference swatches + a QC mm grid
-rectify_card("photo.jpg", color_correct = TRUE, grid = TRUE,
-             output = "photo_rectified.png")
+img <- system.file("extdata", "sample.jpg", package = "scalecard")
 ```
 
-## How it works
+### Detection
 
-`detect_card()`:
+`detect_card()` finds the card and all its control points automatically.
 
-1. finds the card by its red/yellow/blue colour signature (HSV masks + connected
-   components via `EBImage`);
-2. fits the card's **minimum-area rectangle** for an accurate pose, and resolves
-   its orientation using the detected colour patches;
-3. refines the three crosshair targets in **flattened card space** — each target
-   is sampled at its known mm position with an upright, canonical appearance and
-   located sub-pixel by normalised cross-correlation against a synthetic
-   box+ring+crosshair template (the printed target design) — then maps the
-   centres back to image pixels;
-4. locates the colour-patch centres and the 8 cm bar squares as extra control
-   points, and measures the six reference swatches for colour correction.
+``` r
+det <- detect_card(img)
+#> Card found in 1600 x 1200 px image (~6.97 px/mm).
+#>   3 crosshairs + 3 colour patches + 2 bar squares = 8 control points.
+#>   swatches measured: red, yellow, blue, white, black
+det
+#> <scalecard detection>
+#>   image      : 1600 x 1200 px
+#>   scale      : ~6.97 px/mm
+#>   crosshairs : 3  (corner / horiz / vert)
+#>   patches    : 3  bar squares: 2
+#>   swatches   : 5 / 6 measured
+#>   control pts: 8  (perspective fit)
+```
 
-`rectify_card()` builds a homography from all the control points and warps the
-photo flat at `px_per_mm`. Typical registration RMS error is well under 0.5 mm.
-The **full scene is always kept (never cropped)**: the canvas is sized to contain
-every original pixel. For steeply-angled photos the rectified plane can balloon,
-so `max_px` (default 12000) caps the long edge by lowering the effective
-resolution rather than cropping. Areas that fall **outside the original photo**
-(or that would be smeared at a grazing angle) are filled with **white** rather
-than streaked edge pixels (`trim_stretch = TRUE`, `max_stretch = 4`).
+The overlay shows the detected geometry: the blue outline follows the
+card’s true perspective skew, the green “L” is the 50 × 20 mm target
+frame, yellow crosses the three crosshair targets, magenta dots the
+colour patches and cyan squares the 8 cm bar squares.
 
-If auto-detection fails (poor lighting, busy background), fall back to
-`manual_targets("photo.jpg")` — click the three crosshairs in a native window.
+``` r
+plot(det, image = img)
+```
 
-## Important: it rectifies ONE plane
+<img src="man/figures/README-overlay-1.jpeg" alt="" width="85%" style="display: block; margin: auto;" />
 
-The card fixes a single plane (the surface it lies on). Consequences for
-measuring objects placed around the card:
+### Rectification
 
-- **Flat objects on that surface** (e.g. compost impurities — film, fragments)
-  rectify to their **true size and shape**, anywhere in the frame.
-- **Objects with height / 3-D shapes** distort by parallax. A single photo cannot
-  correct this — the card is flat, so it carries no depth information.
-- The farther from the card and the **steeper the camera angle**, the more the
-  surrounding plane is stretched when flattened.
+`rectify_card()` builds a homography from all the control points and
+warps the photo flat at a chosen resolution (default 10 px/mm). It
+white-balances off the card, keeps the full scene (never cropped), and
+fills anything outside the original frame with white instead of smeared
+edges.
 
-**For best results:** lay the card flat *in the same plane* as the objects and
-*close to them*; keep objects flat; shoot as square-on (top-down) as you can with
-the whole working area in frame. Then everything on that plane measures correctly.
+``` r
+rec <- rectify_card(img, grid = FALSE)
+#> Card found in 1600 x 1200 px image (~6.97 px/mm).
+#>   3 crosshairs + 3 colour patches + 2 bar squares = 8 control points.
+#>   swatches measured: red, yellow, blue, white, black
+#> Rectified: 3280 x 3040 px, 10 px/mm (0.1000 mm/px), perspective from 8 points.
+#>   registration RMS error: 0.195 mm
+rec
+#> <scalecard rectified>
+#>   output  : 3280 x 3040 px
+#>   scale   : 10 px/mm (0.1000 mm/px)
+#>   fit     : perspective from 8 control points
+#>   RMS err : 0.195 mm
+```
 
-## Functions
+``` r
+show_img(rec$image)
+```
 
-| function | purpose |
-|---|---|
-| `rectify_card()` | detect + rectify + (optional) colour fix + grid; returns an object, writes a PNG if `output=` is given |
-| `detect_card()`  | automatic detection of all ground-control points |
+<img src="man/figures/README-rectified-1.jpeg" alt="" width="85%" style="display: block; margin: auto;" />
+
+### Measuring
+
+The output has a known scale, so a pixel distance converts straight to
+millimetres:
+
+``` r
+rec$px_per_mm            # pixels per mm
+#> [1] 10
+measure_mm(rec, 250)     # 250 px on the rectified image, in mm
+#> [1] 25
+```
+
+## It rectifies ONE plane
+
+The card fixes a single plane (the surface it lies on). **Flat** objects
+on that surface rectify to their true size and shape anywhere in the
+frame. Objects with **height** (3-D shapes) distort by parallax, which a
+single photo cannot correct. The farther from the card and the steeper
+the camera angle, the more the surrounding plane is stretched when
+flattened.
+
+**For best results:** lay the card flat *in the same plane* as the
+objects and close to them, keep objects flat, and shoot as square-on
+(top-down) as you can with the whole working area in frame.
+
+## When auto-detection fails
+
+For difficult photos (poor lighting, busy background, tiny card) use the
+interactive fallback `manual_targets("photo.jpg")`: a native window
+opens and you click the three crosshair targets; a matched filter snaps
+each click to the ring centre. The result is passed to `rectify_card()`
+via its `detection` argument.
+
+## Function reference
+
+| function           | purpose                                             |
+|--------------------|-----------------------------------------------------|
+| `rectify_card()`   | detect + rectify + (optional) colour fix + grid     |
+| `detect_card()`    | automatic detection of all ground-control points    |
 | `manual_targets()` | interactive click-based fallback for the crosshairs |
-| `white_balance()` | gray-world white balance off the card |
-| `color_correct()` | 3×4 colour transform to the card's reference swatches |
-| `measure_mm()` | convert a pixel distance on a rectified image to mm |
-| `card_spec()` | the fixed card geometry (mm coords, swatch colours) |
+| `white_balance()`  | gray-world white balance off the card               |
+| `color_correct()`  | colour transform to the card’s reference swatches   |
+| `measure_mm()`     | convert a pixel distance to mm                      |
+| `card_spec()`      | the fixed card geometry (edit if your card differs) |
 
-The geometry in `card_spec()` was measured from the physical card; edit it there
-if your card differs.
+A fuller walkthrough is in the package vignette:
+`vignette("scalecard")`.
 
-## Vignette
+## License
 
-A worked walkthrough lives at [vignettes/scalecard.Rmd](vignettes/scalecard.Rmd)
-(an R Markdown `html_vignette`, following the
-[r-pkgs.org](https://r-pkgs.org/vignettes.html) conventions). After installing
-with vignettes, open it with:
-
-```r
-vignette("scalecard")          # or: browseVignettes("scalecard")
-```
-
-Build/install it yourself with:
-
-```r
-devtools::install("scalecard", build_vignettes = TRUE)
-```
-
-Note: building the vignette needs **pandoc**. If you don't have a standalone
-pandoc but do have Quarto, point R at Quarto's bundled copy first:
-
-```r
-Sys.setenv(RSTUDIO_PANDOC = "C:/Program Files/Quarto/bin/tools")  # adjust path
-```
-
+MIT © Ioannis Daliakopoulos
