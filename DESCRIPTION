@@ -1,0 +1,30 @@
+Package: scalecard
+Type: Package
+Title: Rectify and Scale Photographs Using the Credit Card Photography Scale
+Version: 0.1.0
+Authors@R: person("Ioannis", "Daliakopoulos", email = "idaliak@gmail.com",
+    role = c("aut", "cre"))
+Description: Perspective-corrects ("rectifies") and scales photographs taken with
+    the Credit Card Photography Scale (Past Horizons) calibration card. The card's
+    three crosshair rectification targets (on a 50 x 20 mm frame), red/yellow/blue
+    colour patches and 8 cm scale-bar squares are detected automatically and used
+    as ground-control points for a projective (homography) transform, producing a
+    flat image at a known pixels-per-millimetre scale. Optional white-balance and
+    colour-correction off the card's reference swatches are provided. This is an R
+    port of a browser (OpenCV.js) tool, built on 'magick', 'imager' and 'EBImage'
+    instead of OpenCV.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Depends: R (>= 4.0)
+Imports:
+    magick,
+    imager,
+    EBImage,
+    grDevices,
+    stats
+Suggests:
+    testthat,
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
+RoxygenNote: 7.3.3
