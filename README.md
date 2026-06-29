@@ -33,6 +33,9 @@ tool](https://agroinformatics.gr/card-rectifier/) (OpenCV.js), built on
 remotes::install_github("daliakopoulos/scalecard")
 ```
 
+On macOS, `imager` links against X11 — install
+[XQuartz](https://www.xquartz.org/) first if you don’t already have it.
+
 ## A worked example
 
 The package ships with a sample photo (a calibration card and two
